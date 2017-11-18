@@ -1,22 +1,12 @@
 package ca.uqac.ianis.pathfinderbestiarycrawler;
 
-import ca.uqac.ianis.pathfinderbestiarycrawler.utils.DocumentReader;
-import ca.uqac.ianis.pathfinderbestiarycrawler.utils.JSONWriter;
-import jdk.nashorn.internal.runtime.JSONFunctions;
-import org.json.simple.JSONArray;
+import ca.uqac.ianis.pathfinderbestiarycrawler.utils.*;
 import org.json.simple.JSONObject;
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.io.BufferedReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.lang.annotation.Documented;
-import java.net.URL;
-import java.net.URLConnection;
+import java.util.*;
 
 public class Main {
     private static String pathfinderBaseUrl = "http://www.pathfinder-fr.org/Wiki/";
@@ -32,26 +22,33 @@ public class Main {
         JSONObject monsters = new JSONObject();
 
         for(Element monsterLink : monsterLinks){
-            String monsterName = monsterLink.attr("title");
+            String monsterName = StringSanitizer.clean(monsterLink.attr("title"));
 
             monstersCount++;
-            double progress = monstersCount/monstersTotal * (double) 100;
+            long progress = Math.round(monstersCount/monstersTotal * (double) 100);
 
-            System.out.println(Math.round(progress) + "%");
+            Console.printProgress(progress);
 
             Document monsterPage = DocumentReader.fromUrl(pathfinderBaseUrl+monsterLink.attr("href"));
 
             Elements bdSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDsorts]");
-            Elements pouvoirsMagiquesSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("div:contains(Pouvoirs magiques)");
-            Elements sortsPreparesSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("div:contains(Sorts préparés)");
+            Elements pouvoirsMagiquesSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDtexte]").select("div:contains(Pouvoirs magiques)");
+            Elements sortsPreparesSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDtexte]").select("div:contains(Sorts préparés)");
 
-            bdSorts.addAll(pouvoirsMagiquesSorts);
-            bdSorts.addAll(sortsPreparesSorts);
+            if(pouvoirsMagiquesSorts.size() > 0){
+                bdSorts.add(pouvoirsMagiquesSorts.get(0).nextElementSibling());
+                //System.out.println(pouvoirsMagiquesSorts.get(0).nextElementSibling().toString());
+            }
 
-            String monsterSorts = "[";
+            if(sortsPreparesSorts.size() > 0){
+                bdSorts.add(sortsPreparesSorts.get(0).nextElementSibling());
+            }
+
+
+            String monsterSorts = "";
 
             for(Element bdSort : bdSorts){
-                monsterSorts += bdSort.select("[class=pagelink]").html().toString().replaceAll("(\r\n|\n)", ",").replace("'", " ").toLowerCase() + ",";
+                monsterSorts += bdSort.select("[class=pagelink]").html().replaceAll("(\r\n|\n)", ",").replace("'", " ").toLowerCase() + ",";
             }
 
             if(monsterSorts.endsWith(",")){
@@ -62,12 +59,19 @@ public class Main {
                 monsterSorts = monsterSorts.substring(0, monsterSorts.length() - 1);
             }
 
-            monsterSorts += "]";
+            monsterSorts = StringSanitizer.clean(monsterSorts);
+            List<String> sorts = Arrays.asList(monsterSorts.split(","));
+
+            Set<String> set = new HashSet<String>(sorts);
+            sorts = new ArrayList<String>(set);
+
+            monsterSorts = "[" + StringUtils.implode(",", sorts) + "]";
 
             monsters.put(monsterName, monsterSorts);
+            JSONWriter.saveToJSON(monsters, "monsters.json");
         }
 
-        JSONWriter.saveToJSON(monsters, "monsters.json");
+        //JSONWriter.saveToJSON(monsters, "monsters.json");
 
     }
 }
