@@ -68,10 +68,9 @@ public class Main {
             monsterSorts = "[" + StringUtils.implode(",", sorts) + "]";
 
             monsters.put(monsterName, monsterSorts);
-            JSONWriter.saveToJSON(monsters, "monsters.json");
         }
 
-        //JSONWriter.saveToJSON(monsters, "monsters.json");
+        JSONWriter.saveToJSON(monsters, "monsters.json");
 
     }
 }
