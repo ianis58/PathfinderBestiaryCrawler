@@ -31,43 +31,34 @@ public class Main {
 
             Document monsterPage = DocumentReader.fromUrl(pathfinderBaseUrl+monsterLink.attr("href"));
 
-            Elements bdSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDsorts]");
-            Elements pouvoirsMagiquesSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDtexte]").select("div:contains(Pouvoirs magiques)");
-            Elements sortsPreparesSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDtexte]").select("div:contains(Sorts préparés)");
+            Elements allSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDsorts]");
+            Elements magicSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDtexte]").select("div:contains(Pouvoirs magiques)");
+            Elements preparedSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDtexte]").select("div:contains(Sorts préparés)");
 
-            if(pouvoirsMagiquesSorts.size() > 0){
-                bdSorts.add(pouvoirsMagiquesSorts.get(0).nextElementSibling());
-                //System.out.println(pouvoirsMagiquesSorts.get(0).nextElementSibling().toString());
+            if(magicSorts.size() > 0){
+                allSorts.add(magicSorts.get(0).nextElementSibling());
             }
 
-            if(sortsPreparesSorts.size() > 0){
-                bdSorts.add(sortsPreparesSorts.get(0).nextElementSibling());
+            if(preparedSorts.size() > 0){
+                allSorts.add(preparedSorts.get(0).nextElementSibling());
             }
-
 
             String monsterSorts = "";
 
-            for(Element bdSort : bdSorts){
-                monsterSorts += bdSort.select("[class=pagelink]").html().replaceAll("(\r\n|\n)", ",").replace("'", " ").toLowerCase() + ",";
+            for(Element bdSort : allSorts){
+                monsterSorts += StringSanitizer.clean(bdSort.select("[class=pagelink]").html()) + ",";
             }
 
-            if(monsterSorts.endsWith(",")){
-                monsterSorts = monsterSorts.substring(0, monsterSorts.length() - 1);
-            }
+            List<String> sorts = Arrays.asList(monsterSorts.split(","));//on vire les doublons 1/3
+            Set<String> set = new HashSet<String>(sorts);//on vire les doublons 2/3
+            sorts = new ArrayList<String>(set);//on vire les doublons 3/3
 
-            if(monsterSorts.endsWith(",")){//présent deux fois, c'est dégeulasse mais c'est voulu :)
-                monsterSorts = monsterSorts.substring(0, monsterSorts.length() - 1);
-            }
+            monsterSorts = "[" + StringUtils.implode(",", sorts) + "]";//on refait un string depuis notre list de strings
 
-            monsterSorts = StringSanitizer.clean(monsterSorts);
-            List<String> sorts = Arrays.asList(monsterSorts.split(","));
+            monsterSorts = monsterSorts.replace("[,", "[");
+            monsterSorts = monsterSorts.replace(",]", "]");
 
-            Set<String> set = new HashSet<String>(sorts);
-            sorts = new ArrayList<String>(set);
-
-            monsterSorts = "[" + StringUtils.implode(",", sorts) + "]";
-
-            monsters.put(monsterName, monsterSorts);
+            monsters.put(monsterName, monsterSorts);//on ajoute notre monstre et ses sorts à l'objet JSON
         }
 
         JSONWriter.saveToJSON(monsters, "monsters.json");

@@ -2,6 +2,7 @@ package ca.uqac.ianis.pathfinderbestiarycrawler.utils;
 
 public class StringSanitizer {
     public static String clean(String str){
+        str = str.replaceAll("(\r\n|\n)", ",");
         str = str.replace("é", "e");
         str = str.replace("è", "e");
         str = str.replace("ê", "e");
@@ -17,6 +18,7 @@ public class StringSanitizer {
         str = str.replace("dd,", "");
         str = str.replace("\\u2019", " ");
         str = str.replace("\u2019", " ");
+        str = str.toLowerCase();
 
         return str;
     }
