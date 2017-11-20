@@ -1,7 +1,5 @@
 package ca.uqac.ianis.pathfinderbestiarycrawler.utils;
 
-import java.io.IOException;
-
 public class Console {
 
     public static void printProgress(long progress) {

@@ -6,62 +6,101 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.util.*;
-
 public class Main {
-    private static String pathfinderBaseUrl = "http://www.pathfinder-fr.org/Wiki/";
-    private static String bestiaryIndexUrl = "Pathfinder-RPG.Monstres.ashx";
+    private static String pathfinderBaseUrl = "http://paizo.com/pathfinderRPG/prd/bestiary/";
+    private static String bestiaryIndexUrl = "monsterIndex.html";
 
     public static void main(String[] args) {
         Document index = DocumentReader.fromUrl(pathfinderBaseUrl+bestiaryIndexUrl);
-        Elements monsterLinks = index.body().select("[class=page espace-col]").select("[href^=Pathfinder-RPG.]").select("[href*=.ashx]");
+        Elements creaturesLinks = index.body().select("[id=monster-index-wrapper]").select("[href*=.html]");
 
-        double monstersCount = 0;
-        double monstersTotal = monsterLinks.size();
+        Creature.creaturesTotal = creaturesLinks.size();
+        System.out.println(Creature.creaturesTotal);
 
-        JSONObject monsters = new JSONObject();
+        JSONObject creatures = new JSONObject();
 
-        for(Element monsterLink : monsterLinks){
-            String monsterName = StringSanitizer.clean(monsterLink.attr("title"));
+        for(Element creatureLink : creaturesLinks){
 
-            monstersCount++;
-            long progress = Math.round(monstersCount/monstersTotal * (double) 100);
+            String creatureName = creatureLink.html();
+            Creature creature = new Creature(creatureName);
 
-            Console.printProgress(progress);
+System.out.println(creatureLink.outerHtml());
+            Elements creatureBody = DocumentReader.fromUrl(pathfinderBaseUrl+creatureLink.attr("href")).body().getAllElements();
 
-            Document monsterPage = DocumentReader.fromUrl(pathfinderBaseUrl+monsterLink.attr("href"));
 
-            Elements allSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDsorts]");
-            Elements magicSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDtexte]").select("div:contains(Pouvoirs magiques)");
-            Elements preparedSorts = monsterPage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDtexte]").select("div:contains(Sorts préparés)");
-
-            if(magicSorts.size() > 0){
-                allSorts.add(magicSorts.get(0).nextElementSibling());
+            Element currentNode;
+            if(creatureLink.outerHtml().contains("#")) {
+                String creatureAnchor = creatureLink.attr("href").split("#")[1];
+                currentNode = creatureBody.select("[id="+creatureAnchor+"]").first();
+            }
+            else{
+                currentNode = creatureBody.first().child(0);
             }
 
-            if(preparedSorts.size() > 0){
+            boolean reachedStatBlockBreaker = false;
+            boolean nodeEnded = false;
+
+            do{
+                currentNode = currentNode.nextElementSibling();
+
+                if(currentNode != null) {
+                    System.out.println(currentNode.toString());
+                    if (currentNode.outerHtml().contains("stat-block-breaker")) {
+                        if(creature.getSpellsCount() > 0){
+                            reachedStatBlockBreaker = true;
+                        }
+                    }
+
+                    Elements spellsElements = currentNode.select("[href^=/pathfinderRPG/prd/coreRulebook/spells/]");
+
+                    for (Element newSpell : spellsElements) {
+                        //System.out.println(newSpell.toString());
+                        creature.addSpell(newSpell.html());
+                    }
+                }
+                else {
+                    nodeEnded = true;
+                }
+
+            }while (!reachedStatBlockBreaker && !nodeEnded);
+
+            System.out.println(creature.toJSON().toJSONString());
+
+            //break;
+            //Elements allSorts = creaturePage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDsorts]");
+            //Elements magicSorts = creaturePage.body().select("[class=Bestiaire]").select("[class=BD]").select("div:contains(Pouvoirs magiques \\(NLS )");
+            //Elements preparedSorts = creaturePage.body().select("[class=Bestiaire]").select("[class=BD]").select("div:contains(Sorts préparés \\(NLS )");
+/*
+            if(magicSorts.size() > 1){
+                allSorts.addAll(magicSorts);
+                //System.out.println(creatureName +": "+ magicSorts.get(0).toString());
+                allSorts.add(magicSorts.get(0));
+            }
+
+            if(preparedSorts.size() > 1){
+                allSorts.addAll(preparedSorts);
+                //System.out.println(creatureName +": "+ preparedSorts.get(0).toString());
                 allSorts.add(preparedSorts.get(0).nextElementSibling());
             }
-
-            String monsterSorts = "";
-
+*/
+            //String spellsTmp = "";
+/*
             for(Element bdSort : allSorts){
-                monsterSorts += StringSanitizer.clean(bdSort.select("[class=pagelink]").html()) + ",";
+                spellsTmp += StringSanitizer.clean(StringSanitizer.clean(bdSort.select("[class=pagelink]").html()))+",";
             }
 
-            List<String> sorts = Arrays.asList(monsterSorts.split(","));//on vire les doublons 1/3
-            Set<String> set = new HashSet<String>(sorts);//on vire les doublons 2/3
-            sorts = new ArrayList<String>(set);//on vire les doublons 3/3
+            spellsTmp = StringSanitizer.clean(spellsTmp);
 
-            monsterSorts = "[" + StringUtils.implode(",", sorts) + "]";//on refait un string depuis notre list de strings
+            for(String newSpell : spellsTmp.split(",")){
+                creature.addSpell(newSpell);
+            }
 
-            monsterSorts = monsterSorts.replace("[,", "[");
-            monsterSorts = monsterSorts.replace(",]", "]");
+            creatures.put((int) Creature.creaturesCount, creature.toJSON());//on ajoute notre monstre et ses sorts à l'objet JSON
 
-            monsters.put(monsterName, monsterSorts);//on ajoute notre monstre et ses sorts à l'objet JSON
+            JSONWriter.saveToJSON(creatures, "creatures.json");*/
         }
 
-        JSONWriter.saveToJSON(monsters, "monsters.json");
+        JSONWriter.saveToJSON(creatures, "creatures.json");
 
     }
 }

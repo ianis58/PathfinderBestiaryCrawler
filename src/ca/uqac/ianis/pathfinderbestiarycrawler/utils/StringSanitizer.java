@@ -13,12 +13,18 @@ public class StringSanitizer {
         str = str.replace("û", "u");
         str = str.replace("ç", "c");
         str = str.replace("'", " ");
-        str = str.replace(",dd,", ",");
-        str = str.replace(",dd", "");
-        str = str.replace("dd,", "");
         str = str.replace("\\u2019", " ");
         str = str.replace("\u2019", " ");
         str = str.toLowerCase();
+        str = str.replace(",dd,", ",");
+        str = str.replace(",dd", "");
+        str = str.replace("dd,", "");
+        str = str.replace("[,", "[");
+        str = str.replace(",]", "]");
+        str = str.replace(",,,,,", ",");
+        str = str.replace(",,,,", ",");
+        str = str.replace(",,,", ",");
+        str = str.replace(",,", ",");
 
         return str;
     }
