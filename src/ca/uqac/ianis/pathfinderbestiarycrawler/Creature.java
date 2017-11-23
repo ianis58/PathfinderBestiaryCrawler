@@ -4,6 +4,7 @@ import ca.uqac.ianis.pathfinderbestiarycrawler.utils.Console;
 import ca.uqac.ianis.pathfinderbestiarycrawler.utils.StringUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.jsoup.select.Elements;
 
 import java.util.*;
 
@@ -11,7 +12,7 @@ public class Creature {
     String name;
     List<String> spells;
     static double creaturesCount = 0;
-    static double creaturesTotal = 1;
+    static Elements creaturesLinks;
     static long progress = 0;
 
     public Creature(String name) {
@@ -19,7 +20,7 @@ public class Creature {
         this.spells = new ArrayList<String>();
         creaturesCount++;
 
-        progress = Math.round(Creature.creaturesCount/Creature.creaturesTotal * (double) 100);
+        progress = Math.round(Creature.creaturesCount/Creature.creaturesLinks.size() * (double) 100);
 
         Console.printProgress(progress);
     }

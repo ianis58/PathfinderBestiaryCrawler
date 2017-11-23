@@ -11,96 +11,76 @@ public class Main {
     private static String bestiaryIndexUrl = "monsterIndex.html";
 
     public static void main(String[] args) {
+        //on récupère la page "index" répertoriant les liens vers toutes les créatures
         Document index = DocumentReader.fromUrl(pathfinderBaseUrl+bestiaryIndexUrl);
-        Elements creaturesLinks = index.body().select("[id=monster-index-wrapper]").select("[href*=.html]");
 
-        Creature.creaturesTotal = creaturesLinks.size();
-        System.out.println(Creature.creaturesTotal);
+        //on sélectionne les nodes qui contiennent les liens vers les monstres
+        Creature.creaturesLinks = index.body().select("[id=monster-index-wrapper]").select("[href*=.html]");
 
+        //on crée un objet JSON vide pour stocker nos créatures
         JSONObject creatures = new JSONObject();
 
-        for(Element creatureLink : creaturesLinks){
+        //on parcours tous nos nodes (ou "liens") de créatures
+        for(Element creatureLink : Creature.creaturesLinks){
 
             String creatureName = creatureLink.html();
-            Creature creature = new Creature(creatureName);
+            Creature creature = new Creature(creatureName);//nouvelle créature, juste avec son nom, sans ses sorts
 
-System.out.println(creatureLink.outerHtml());
-            Elements creatureBody = DocumentReader.fromUrl(pathfinderBaseUrl+creatureLink.attr("href")).body().getAllElements();
+            //on aura uniquement les éléments ayant class="stat-block-*" ainsi que les <h1>
+            Elements paragraphNodes = DocumentReader
+                                        .fromUrl(pathfinderBaseUrl+creatureLink.attr("href"))
+                                        .body()
+                                        .select("[class=body-content]")
+                                        .select("[class=body]")
+                                        .select("[class^=stat-block-],h1");
 
-
-            Element currentNode;
+            String creatureAnchor;//on utilise l'ancre HTML pour gérer les pages avec plusieurs créatures
             if(creatureLink.outerHtml().contains("#")) {
-                String creatureAnchor = creatureLink.attr("href").split("#")[1];
-                currentNode = creatureBody.select("[id="+creatureAnchor+"]").first();
+                creatureAnchor = creatureLink.attr("href").split("#")[1];
             }
             else{
-                currentNode = creatureBody.first().child(0);
+                creatureAnchor = creatureLink.attr("href").split(".html")[0];
             }
 
-            boolean reachedStatBlockBreaker = false;
-            boolean nodeEnded = false;
+            //ces booléens permettront de suivre l'avancement dans les nodes
+            boolean currentCreatureH1NodeSeen = false;
+            boolean otherCreatureH1NodeSeen = false;
+            boolean offenseNodeSeen = false;
 
-            do{
-                currentNode = currentNode.nextElementSibling();
+            for (Element paragraphNode : paragraphNodes) {
+                if (otherCreatureH1NodeSeen) {
+                    System.out.println("#####################################"+creatureName);
+                    break;//si on a vu le noeud d'une autre créature c'est qu'on a déjà passé les noeuds qui nous intéressent, on passe à
+                }
 
-                if(currentNode != null) {
-                    System.out.println(currentNode.toString());
-                    if (currentNode.outerHtml().contains("stat-block-breaker")) {
-                        if(creature.getSpellsCount() > 0){
-                            reachedStatBlockBreaker = true;
-                        }
+                if (paragraphNode.outerHtml().contains("<h1") && paragraphNode.attr("id").equals(creatureAnchor)) {
+                    if (currentCreatureH1NodeSeen) {
+                        otherCreatureH1NodeSeen = true;
                     }
 
-                    Elements spellsElements = currentNode.select("[href^=/pathfinderRPG/prd/coreRulebook/spells/]");
-
-                    for (Element newSpell : spellsElements) {
-                        //System.out.println(newSpell.toString());
-                        creature.addSpell(newSpell.html());
-                    }
+                    currentCreatureH1NodeSeen = true;
                 }
                 else {
-                    nodeEnded = true;
+                    if (!offenseNodeSeen) {
+                        if (paragraphNode.attr("class").equals("stat-block-breaker") && paragraphNode.html().equals("offense")) {
+                            offenseNodeSeen = true;
+                        }
+                    } else {
+                        if (paragraphNode.attr("class").equals("stat-block-breaker") && paragraphNode.html().equals("statistics")) {
+                            break;
+                        }
+
+                        Elements separatedSpells = paragraphNode.select("[href^=/pathfinderRPG/prd/coreRulebook/spells/]");
+                        for (Element spell : separatedSpells) {
+                            creature.addSpell(spell.html());
+                        }
+                    }
                 }
-
-            }while (!reachedStatBlockBreaker && !nodeEnded);
-
-            System.out.println(creature.toJSON().toJSONString());
-
-            //break;
-            //Elements allSorts = creaturePage.body().select("[class=Bestiaire]").select("[class=BD]").select("[class=BDsorts]");
-            //Elements magicSorts = creaturePage.body().select("[class=Bestiaire]").select("[class=BD]").select("div:contains(Pouvoirs magiques \\(NLS )");
-            //Elements preparedSorts = creaturePage.body().select("[class=Bestiaire]").select("[class=BD]").select("div:contains(Sorts préparés \\(NLS )");
-/*
-            if(magicSorts.size() > 1){
-                allSorts.addAll(magicSorts);
-                //System.out.println(creatureName +": "+ magicSorts.get(0).toString());
-                allSorts.add(magicSorts.get(0));
             }
 
-            if(preparedSorts.size() > 1){
-                allSorts.addAll(preparedSorts);
-                //System.out.println(creatureName +": "+ preparedSorts.get(0).toString());
-                allSorts.add(preparedSorts.get(0).nextElementSibling());
-            }
-*/
-            //String spellsTmp = "";
-/*
-            for(Element bdSort : allSorts){
-                spellsTmp += StringSanitizer.clean(StringSanitizer.clean(bdSort.select("[class=pagelink]").html()))+",";
-            }
-
-            spellsTmp = StringSanitizer.clean(spellsTmp);
-
-            for(String newSpell : spellsTmp.split(",")){
-                creature.addSpell(newSpell);
-            }
-
-            creatures.put((int) Creature.creaturesCount, creature.toJSON());//on ajoute notre monstre et ses sorts à l'objet JSON
-
-            JSONWriter.saveToJSON(creatures, "creatures.json");*/
+            creatures.put((int) Creature.creaturesCount, creature.toJSON()); //on ajoute notre monstre, un id incrémenté, et ses sorts à l'objet JSON
         }
 
-        JSONWriter.saveToJSON(creatures, "creatures.json");
-
+        JSONWriter.saveToJSON(creatures, "creatures.json", true);
     }
 }
